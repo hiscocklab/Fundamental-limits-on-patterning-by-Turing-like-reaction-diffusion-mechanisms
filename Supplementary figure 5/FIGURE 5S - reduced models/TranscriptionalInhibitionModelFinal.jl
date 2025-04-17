@@ -1,0 +1,131 @@
+## Figure 5S
+using Plots
+using RecursiveArrayTools
+using Symbolics
+using Statistics
+
+## import and load
+include("required_scripts_2.jl")
+include("plotting_scripts.jl")
+
+function HillFunction(SIG,k,K,n)
+    ratio = max((SIG),0)
+    hill_val = ratio^n/(ratio^n + K^n)
+    return k*hill_val
+end
+model = @reaction_network begin
+    1,                     A1 --> ∅
+    k₂,                     A2 --> ∅
+    k₃,                     SA1 --> ∅
+    k₄,                     SA2 --> ∅
+    HillFunction(SA1,1,1,n₁)*HillFunction(SA2,1,1,n₂),            ∅ --> A1
+    HillFunction(SA1,k₅,K₃,n₃),           ∅ --> A2
+    k₆*A1,                           ∅ --> SA1
+    k₇*A2,                              ∅ --> SA2
+end
+
+## Specify model parameters
+params = model_parameters()
+N_screen = 5
+params.reaction["k₂"] = screen_values(min = 0.1, max = 10, mode = "log", number = 5)
+params.reaction["k₃"] = [0.01]
+params.reaction["k₄"] = screen_values(min = 0.1, max = 10, mode = "log", number = 4)
+params.reaction["k₅"] =screen_values(min = 0.1, max = 10, mode = "log", number = 5)
+params.reaction["k₆"] = screen_values(min = 0.1, max = 10, mode = "log", number = 4)
+params.reaction["k₇"] = screen_values(min = 0.1, max = 10, mode = "log", number = 4)
+params.reaction["K₃"] = screen_values(min = 0.1, max = 10, mode = "log", number = 5)
+params.reaction["n₁"] = [2.5] 
+params.reaction["n₂"] =  screen_values(min = 0, max = 3, mode = "linear", number = 10 )
+params.reaction["n₃"] =  screen_values(min = -3, max = 0, mode = "linear", number = 10 )
+params.diffusion["A1"] = [1.0] #single values must be in square brackets
+params.diffusion["A2"] =  screen_values(min = .1, max = 10, mode = "log", number = 5)
+
+## Compile functions and solvers
+include("simulate_scripts_2.jl")
+
+## Turing screen
+@time turing_params = returnTuringParams(model, params);
+
+## Compute Robustness for all varying parameters
+using Measures
+ps,ds,ics, _, _, _ = returnParameterSets(model, params)
+n_iter = prod([length.(ps); length.(ics); length.(ds)])   
+i = ["k₂";"k₃";"k₄";"n₁";"n₂";"k₅";"K₃";"n₃";"k₆";"k₇"]  #Order must match order of turing_params.reaction_params (model.ps)
+
+Robustness= zeros(length(i), 0) 
+ # Initialize with 0 columns
+for idx_i in 1:length(i)
+    j = params.reaction[i[idx_i]]
+    
+    Robustness = zeros(1, size(Robustness, 2) + length(j))
+    
+    for idx_j in 1:length(j)
+        # Construct the dynamic indices
+        reaction_name = i[idx_i]
+
+        # Count occurrences and update Robustness
+        Robustness[1, end - length(j) + idx_j] = round(100*count(x -> x == params.reaction[reaction_name][idx_j], VectorOfArray(turing_params.reaction_params)[idx_i, :]) * length(params.reaction[reaction_name]) / n_iter;digits = 1)
+    end
+    
+    p = Plots.plot(
+        Plots.heatmap(
+            reshape(Robustness, 1, length(Robustness)),
+            color=:Reds,
+            cmin=0,
+            cmax=1,
+            xlabel=i[idx_i],
+            title="Robustness Heatmap",
+            yflip=true,
+            yticks=false,
+            xticks=(1:length(j), [string(round(val, digits=2)) for val in j]),  # Format tick labels to two decimal places
+            size=(500, 160),  # Adjust the overall size of the plot
+            legend=:top,
+            tickfontsize=8,
+            guidefontsize=10,
+            bottom_margin=10Measures.mm,
+            right_margin=10Measures.mm,
+            clim=(0,1)
+        )
+    )
+display(p)
+Robustness= zeros(length(i), 0)
+end 
+i = ["A1";"A2";"SA1";"SA2"]
+Robustness= zeros(length(i), 0) 
+ # Initialize with 0 columns
+for idx_i in 1:length(i)
+    j = params.diffusion[i[idx_i]]
+    
+    Robustness = zeros(1, size(Robustness, 2) + length(j))
+    
+    for idx_j in 1:length(j)
+        # Construct the dynamic indices
+        reaction_name = i[idx_i]
+
+        # Count occurrences and update Robustness
+        Robustness[1, end - length(j) + idx_j] = round(100*count(x -> x == params.diffusion[reaction_name][idx_j], VectorOfArray(turing_params.diffusion_constants)[idx_i, :]) * length(params.diffusion[reaction_name]) / n_iter;digits = 1)
+    end
+    
+    p = Plots.plot(
+        Plots.heatmap(
+            reshape(Robustness, 1, length(Robustness)),
+            color=:Reds,
+            cmin=0,
+            cmax=1,
+            xlabel=i[idx_i],
+            title="Robustness Heatmap",
+            yflip=true,
+            yticks=false,
+            xticks=(1:length(j), [string(round(val, digits=2)) for val in j]),  # Format tick labels to two decimal places
+            size=(500, 160),  # Adjust the overall size of the plot
+            legend=:top,
+            tickfontsize=8,
+            guidefontsize=10,
+            bottom_margin=10Measures.mm,
+            right_margin=10Measures.mm,
+            clim=(0,1)
+        )
+    )
+display(p)
+Robustness= zeros(length(i), 0)
+end 

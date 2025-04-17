@@ -81,52 +81,57 @@ function returnD(ds, i)
     return D
 end
 
-function computeStability(J,D)
+function computeStability(J)
+    # compute general condition for Turing instability, from: https://doi.org/10.1103/PhysRevX.8.021071
+     # Check if J contains NaN or Inf values                                                 # added by Daniel
+   # if any(x -> isnan(x) || isinf(x), J)                                                   #added by Daniel
+   #     return 0  # Indicate that J contains NaN or Inf values                                  #added by Daniel
+  #  end                                                                                          #added by Daniel
     n_species = size(J)[1]
-   
-    n = size(J)[1]
-
-    if n == 3
-        S = J
+    if maximum(real(eigvals(J))) > 0.0 
+        return 0  ## steady state is unstable
     else
-    # Extracting the submatrices
-    A = J[1:3, 1:3]          # Top left 3x3 block
-    B = J[1:3, 4:n]          # Top right 3x(n-3) block
-    C = J[4:n, 1:3]          # Bottom left (n-3)x3 block
-    E = J[4:n, 4:n]          # Bottom right (n-3)x(n-3) block  #D is already taked for diffusion
-
-    # Check if E is singular
-    det_E = det(E)
-
-    if det_E == 0  #Singular matrix
-    S = zeros(3, 3)  # S should be a 3x3 zero matrix (same size as A)
-    else
-    # Compute S using the given formula
-    S = A - B * inv(E) * C #Schur complement
+        for subset in combinations(1:n_species)            
+            if ((-1)^length(subset)*det(J[subset,subset])) < 0.0 
+                 return 1 ## J is not a P_0 matrix
+            end
+        end
     end
-    end 
-    
-    # a*lambda^3 + c2*lambda^2 +c3
-    C1 = (S[1,1]*S[2,2]*S[3,3] - S[1,1]*S[3,2]*S[2,3] - S[1,2]*S[2,1]*S[3,3]+S[1,2]*S[3,1]*S[2,3]+S[1,3]*S[2,1]*S[3,2]-S[1,3]*S[3,1]*S[2,2]) 
-    C2 =  (-S[1,1]*S[3,3]*D[2] - S[2,2]*S[3,3]*D[1]+S[3,2]*S[2,3]*D[1]+S[1,3]*S[3,1]*D[2]) 
-    C3 = (-S[1,1]*S[3,3]*D[2] - S[2,2]*S[3,3]*D[1]+S[3,2]*S[2,3]*D[1]+S[1,3]*S[3,1]*D[2])^2 - 4*(S[3,3]*D[1]*D[2])*(S[1,1]*S[2,2]*S[3,3] - S[1,1]*S[3,2]*S[2,3] - S[1,2]*S[2,1]*S[3,3]+S[1,2]*S[3,1]*S[2,3]+S[1,3]*S[2,1]*S[3,2]-S[1,3]*S[3,1]*S[2,2])
-
-   if  C1 <0.0 && C2 > 0.0 && C3>0.0        # IS IT ALWAYS LIKE THIS? DOES IT NOT DEPEND ON THE SIZE OF FULL MODEL?
-        return 1  ## steady state is unstable
-    else
-        #for subset in combinations(1:n_species)            
-        #    if ((-1)^length(subset)*det(J[subset,subset])) < 0.0 
-         #        return 1 ## J is not a P_0 matrix  (weaker than MATALAB necessary condition, but close (??))
-         #   end
-       # end
-    #end
     return 0 ## J is a P_0 matrix
-    end
 end
 
+#function computeStability(J)
+#    # Compute general condition for Turing instability
+#    if any(x -> isnan(x) || isinf(x), J)
+#        return -2  # J contains NaN or Inf values
+#    end
+#    
+#    n_species = size(J, 1)
+#    max_eigenvalue = maximum(real(eigvals(J)))
+#    # Find the index of the maximum eigenvalue
+#    max_real_index = argmax(real(eigvals(J)))
+#        
+#    # Get the corresponding eigenvector
+#    max_real_eigenvector = eigvecs(J)[:, max_real_index]
+#    
+#    # Round the entries of the eigenvector to 4 decimal places
+#    rounded_eigenvector = round.(max_real_eigenvector, digits=4)
+#
+#    if max_eigenvalue > 0  || any(x -> x == 0.0000, rounded_eigenvector)
+#        return 0  # Steady state is unstable
+# else
+#        for subset in combinations(1:n_species)            
+#            if ((-1)^length(subset)*det(J[subset, subset])) < 0 
+#                return 1  # J is not a P_0 matrix
+#            end
+#        end
+#    end
+#    
+#    return 0  # J is a P_0 matrix
+#end
 
 
-function isTuring(J,D,q2_input)
+ function isTuring(J,D,q2_input)
 
     # determine whether any eigenvalue has a real positive part across range of wavevectors (q2_input)
     #       - if yes, then store relevant variables
@@ -163,7 +168,6 @@ end
 
 
 
-
 function identifyTuring(sol, ds)
 
     # Returns turingParameters that satisfy diffusion-driven instability for each steady state in sol, and diffusion constants in ds. 
@@ -177,15 +181,14 @@ function identifyTuring(sol, ds)
     for solᵢ in sol
         if SciMLBase.successful_retcode(solᵢ) && minimum(solᵢ) >= 0
             J = jacobian(Array(solᵢ),solᵢ.prob.p,0.0)
-            for idx_ds in 1:prod(length.(ds))
-                D = returnD(ds,idx_ds)
-            if computeStability(J,D) == 1
-              
-                    
-            push!(turingParameters,save_turing(solᵢ,solᵢ.prob.p,returnD(ds,idx_ds),solᵢ.prob.u0,[1,1,1],1, 1, 1,idx_turing))
-            idx_turing = idx_turing + 1
-                    
-            end
+            if computeStability(J) == 1
+                for idx_ds in 1:prod(length.(ds))
+                    qmax, phase, real_max, non_oscillatory = isTuring(J,returnD(ds,idx_ds),q2)
+                    if qmax > 0
+                        push!(turingParameters,save_turing(solᵢ,solᵢ.prob.p,returnD(ds,idx_ds),solᵢ.prob.u0,phase,2*pi/qmax, real_max, non_oscillatory,idx_turing))
+                        idx_turing = idx_turing + 1
+                    end
+                end
             end
         end
     end
@@ -275,8 +278,7 @@ function get_param(model, turing_params, name, type)
     return output
 end
 
-
-function returnTuringParams(model, params; maxiters = 1e3,alg=Rodas5(),abstol=1e-8, reltol=1e-5, tspan=1e4,ensemblealg=EnsembleThreads())    #Used for figure 3, as well as 1S (fills up the space better)
+function returnTuringParams(model, params; maxiters = 1e3,alg=Rodas5(),abstol=1e-8, reltol=1e-5, tspan=1e4,ensemblealg=EnsembleThreads())   #Fills up figure better, used for figure 1 and 3
 #function returnTuringParams(model, params; maxiters = 1e3,alg=Rodas5(),abstol=1e-8, reltol=1e-8, tspan=1e4,ensemblealg=EnsembleThreads())   #Daniel changed reltol from 1e-6 to 1e-8, Originally: abstol=1e-8, reltol=1e-6
 
     # read in parameters (ps), diffusion constants (ds), and initial conditions (ics)
@@ -353,5 +355,4 @@ function simulate(model,param;alg=KenCarp4(),reltol=1e-6,abstol=1e-8, dt = 0.1, 
    return sol.original
 
 end
-
 
