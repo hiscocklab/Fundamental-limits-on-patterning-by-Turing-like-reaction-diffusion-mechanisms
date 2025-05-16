@@ -20,19 +20,19 @@ end
 model = @reaction_network begin
     1,                      A --> ∅
     k₂,                     I --> ∅
-    HillFunction(S24n,1,1,n₁) - k₊*A*I ,            ∅ --> A 
-    HillFunction(S24n,k₅,K₂,n₂) - k₊*A*I,           ∅ --> I 
+    HillFunction(S14n,1,1,n₁) - k₊*A*I ,            ∅ --> A 
+    HillFunction(S14n,k₅,K₂,n₂) - k₊*A*I,           ∅ --> I 
    A-kR*R,                                               ∅ --> R  
-  730.0-kphos*R*S2c-kin2*S2c+kex2*S2n-0.1*S2c, ∅ --> S2c   #Constant is 73.0/Mfactor*degradation_rate
-  kphos*R*S2c-kin2*pS2c-kon*pS2c*(S2c+2*pS2c)+koff*(S24c+2*S22c) +kex2*pS2n-0.1*pS2c, ∅ --> pS2c
-  730.0-kin4*S4c-kon*pS2c*S4c+koff*S24c+kex4*S4n-0.1*S4c, ∅ --> S4c   
-  kon*pS2c*S4c-koff*S24c-kin2*CIF*S24c-0.1*S24c, ∅ --> S24c
-  kon*pS2c^2-koff*S22c-kin2*CIF*S22c-0.1*S22c, ∅ --> S22c   
-  a*kin2*S2c-a*kex2*S2n+kdephos*PPase*pS2n -0.1*S2n, ∅ --> S2n    
-  a*kin2*pS2c-a*kex2*pS2n-kdephos*PPase*pS2n-kon*pS2n*(S4n+2*pS2n)+koff*(S24n+2*S22n)-0.1*pS2n, ∅ --> pS2n
-  a*kin4*S4c-a*kex4*S4n-kon*pS2n*S4n+koff*S24n-0.1*S4n, ∅ --> S4n 
-  a*kin2*CIF*S24c+kon*pS2n*S4n-koff*S24n-0.1*S24n, ∅ --> S24n 
-  a*kin2*CIF*S22c+kon*pS2n^2-koff*S22n-0.1*S22n, ∅ --> S22n    
+  730.0-kphos*R*S1c-kin2*S1c+kex2*S1n-0.1*S1c, ∅ --> S1c   #Constant is 73.0/Mfactor*degradation_rate
+  kphos*R*S1c-kin2*pS1c-kon*pS1c*(S1c+2*pS1c)+koff*(S14c+2*S12c) +kex2*pS1n-0.1*pS1c, ∅ --> pS1c
+  730.0-kin4*S4c-kon*pS1c*S4c+koff*S14c+kex4*S4n-0.1*S4c, ∅ --> S4c   
+  kon*pS1c*S4c-koff*S14c-kin2*CIF*S14c-0.1*S14c, ∅ --> S14c
+  kon*pS1c^2-koff*S12c-kin2*CIF*S12c-0.1*S12c, ∅ --> S12c   
+  a*kin2*S1c-a*kex2*S1n+kdephos*PPase*pS1n -0.1*S1n, ∅ --> S1n    
+  a*kin2*pS1c-a*kex2*pS1n-kdephos*PPase*pS1n-kon*pS1n*(S4n+2*pS1n)+koff*(S14n+2*S12n)-0.1*pS1n, ∅ --> pS1n
+  a*kin4*S4c-a*kex4*S4n-kon*pS1n*S4n+koff*S14n-0.1*S4n, ∅ --> S4n 
+  a*kin2*CIF*S14c+kon*pS1n*S4n-koff*S14n-0.1*S14n, ∅ --> S14n 
+  a*kin2*CIF*S12c+kon*pS1n^2-koff*S12n-0.1*S12n, ∅ --> S12n    
 end
 
 
